@@ -8,14 +8,14 @@ Async context makes request-scoped tracing and transactions available without th
 
 ```ts
 await ctx.commands.execute(IssueCard, input)
-// framework handles tx begin/commit/rollback and ALS scope
+// framework handles tx begin/commit/rollback and ALS scope (execute stays local)
 ```
 
 If explicit scoping is needed (tests, background jobs), a helper can establish context:
 
 ```ts
 await withContext(testContext, async () => {
-	await ctx.commands.execute(IssueCard, input)
+	await ctx.commands.execute(IssueCard, input) // local execution in tests
 })
 ```
 
@@ -23,11 +23,11 @@ await withContext(testContext, async () => {
 export const redeemCardHandler = defineCommandHandler({
 	command: RedeemCard,
 	handle: async function (cmd) {
-		const ctx = useContext()
 		// no ctx parameter required; ALS provides request scope
-		const card = await ctx.repositories.load(GiftCard, cmd.cardId)
+		const giftCardRepository = useContext().giftCardRepository
+		const card = await giftCardRepository.load(cmd.cardId)
 		card.remainingValue -= cmd.amount
-		await ctx.repositories.save(GiftCard, card)
+		await giftCardRepository.save(card)
 	}
 })
 ```
@@ -40,10 +40,10 @@ Repositories provide explicit load/save access while keeping transaction boundar
 export const redeemCardHandler = defineCommandHandler({
 	command: RedeemCard,
 	handle: async function (cmd) {
-		const ctx = useContext()
-		const card = await ctx.repositories.load(GiftCard, cmd.cardId)
+		const giftCardRepository = useContext().giftCardRepository
+		const card = await giftCardRepository.load(cmd.cardId)
 		card.remainingValue -= cmd.amount
-		await ctx.repositories.save(GiftCard, card)
+		await giftCardRepository.save(card)
 	}
 })
 ```

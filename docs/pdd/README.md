@@ -20,3 +20,4 @@ The document takes the vision’s principles as guardrails:
 - [`docs/pdd/primary-concepts.md`](primary-concepts.md)
 - [`docs/pdd/user-stories.md`](user-stories.md)
 - [`docs/pdd/secondary-concepts.md`](secondary-concepts.md)
+- [`docs/pdd/infrastructure-adapters.md`](infrastructure-adapters.md)

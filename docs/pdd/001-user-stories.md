@@ -87,7 +87,7 @@ export const IssueCard = defineCommand({
 
 ### Application Services (Edge Concerns Only)
 
-Application services translate transport concerns into domain inputs and pick execution timing. They also generate any new identifiers before executing or enqueuing commands. We use `defineApplicationService` to keep edge logic separate from domain decisions. Authentication helpers like `requireUser()` are optional conveniences, not core framework concepts.
+Application services translate transport concerns into domain inputs and pick execution timing. They also generate any new identifiers before executing or dispatching commands, depending on whether the workflow runs locally or through messaging infrastructure. We use `defineApplicationService` to keep edge logic separate from domain decisions. Authentication helpers like `requireUser()` are optional conveniences, not core framework concepts.
 
 Application services *should* not:
 
@@ -98,7 +98,7 @@ Application services *should* not:
 They *should*:
 
 * handle application concerns (auth, mapping, response shaping)
-* orchestrate command processing timeline: execute (synchronous) vs. enqueuing (asynchronous)
+* orchestrate command processing timeline: execute (synchronous) vs. dispatch (messaging/distributed)
 
 ```ts
 import crypto from 'node:crypto'
@@ -354,16 +354,17 @@ export const getGiftCardBalance = defineQueryHandler({
 
 The `Ledger` context reacts to `GiftCard.CardRedeemed`, translating the upstream fact into a local command and event while preserving boundary language. This shows how the framework keeps cross-boundary workflows decoupled through events.
 
-This story starts when the `Ledger` event handler receives `GiftCard.CardRedeemed`. The handler dispatches `RecordRedemption` to messaging, the framework executes it against `LedgerEntry`, and `recordRedemptionHandler` raises `RedemptionRecorded`. The ledger entry records the transaction for reporting and reconciliation, keeping the workflow moving across boundaries without direct calls.
+This story starts when the `Ledger` event handler receives `GiftCard.CardRedeemed`. The handler dispatches `RecordRedemption` to messaging, the framework executes it against `Ledger`, and `recordRedemptionHandler` raises `RedemptionRecorded`. The ledger records the transaction for reporting and reconciliation, keeping the workflow moving across boundaries without direct calls.
 
 ```mermaid
 flowchart TD
   Redeemed[GiftCard.CardRedeemed] --> Handler[Ledger Event Handler]
-  Handler --> Enqueue[Enqueue Ledger.RecordRedemption]
-  Enqueue --> LedgerHandler[Ledger Command Handler]
-  LedgerHandler --> Persist[Persist Ledger Entry]
+  Handler --> Dispatch[Dispatch Ledger.RecordRedemption]
+  Dispatch --> LedgerHandler[Ledger Command Handler]
+  LedgerHandler --> Persist[Persist Ledger]
   Persist --> Publish[Publish Ledger.RedemptionRecorded]
 ```
+
 
 ### Event Handler (Reacts to Fact → Enqueues Local Command)
 
@@ -377,7 +378,7 @@ export const onCardRedeemed = defineEventHandler({
 	handle: async function (evt) {
 		const ctx = useContext()
 		await ctx.commands.dispatch(RecordRedemption, {
-			ledgerEntryId: crypto.randomUUID(),
+			ledgerId: crypto.randomUUID(),
 			cardId: evt.cardId,
 			transactionId: evt.transactionId,
 			amount: evt.amount
@@ -395,65 +396,65 @@ import { z } from 'zod'
 
 export const RecordRedemption = defineCommand({
 	schema: z.object({
-		ledgerEntryId: z.string().min(1),
+		ledgerId: z.string().min(1),
 		cardId: z.string().min(1),
 		transactionId: z.string().min(1),
 		amount: z.number().int().positive()
 	}),
 	target: function (c) {
-		return c.ledgerEntryId
+		return c.ledgerId
 	},
 })
 ```
 
 ### Entity and Command Handler
 
-The entity models the ledger entry state, while the handler applies the command to produce the event, keeping business decisions inside the boundary. If the ledger needs line items, child entities can be modeled alongside the parent schema. A `defineEntity` with a `parent` field is treated as a child entity for routing purposes. Events raised from child-aware handlers carry the root aggregate identity in context for publishing and tracing.
+The entity models the ledger state, while the handler applies the command to produce the event, keeping business decisions inside the boundary. If the ledger needs line items, entries can be modeled as child entities under the root. A `defineEntity` with a `parent` field is treated as a child entity for routing purposes. Events raised from child-aware handlers carry the root aggregate identity in context for publishing and tracing.
 
 ```ts
 import { z } from 'zod'
 
-const LedgerLineSchema = z.object({
-	lineId: z.string().min(1),
-	accountId: z.string().min(1),
-	amount: z.number().int(),
-	type: z.enum(['debit', 'credit'])
+const LedgerEntrySchema = z.object({
+	entryId: z.string().min(1),
+	cardId: z.string().min(1),
+	transactionId: z.string().min(1),
+	amount: z.number().int().positive()
 })
 
-export const LedgerEntry = defineEntity({
+export const Ledger = defineEntity({
 	schema: z.object({
 		id: z.string().min(1),
-		cardId: z.string().min(1),
-		transactionId: z.string().min(1),
-		amount: z.number().int().positive(),
-		lines: z.array(LedgerLineSchema)
+		entries: z.array(LedgerEntrySchema)
 	}),
 	id: function (s) {
 		return s.id
 	}
 })
 
-export const LedgerLine = defineEntity({
-	parent: LedgerEntry,
-	schema: LedgerLineSchema,
-	id: function (l) {
-		return l.lineId
+export const LedgerEntry = defineEntity({
+	parent: Ledger,
+	schema: LedgerEntrySchema,
+	id: function (e) {
+		return e.entryId
 	}
 })
 
 export const recordRedemptionHandler = defineCommandHandler({
-	entity: LedgerEntry,
+	entity: Ledger,
 	command: RecordRedemption,
 	creation: 'always',
 	handle: function (cmd, state) {
 		const ctx = useContext()
-		state.id = cmd.ledgerEntryId
-		state.cardId = cmd.cardId
-		state.transactionId = cmd.transactionId
-		state.amount = cmd.amount
+		state.id = cmd.ledgerId
+		state.entries.push({
+			entryId: cmd.transactionId,
+			cardId: cmd.cardId,
+			transactionId: cmd.transactionId,
+			amount: cmd.amount
+		})
 
 		ctx.raise(RedemptionRecorded, {
-			ledgerEntryId: cmd.ledgerEntryId,
+			ledgerId: cmd.ledgerId,
 			cardId: cmd.cardId,
 			transactionId: cmd.transactionId,
 			amount: cmd.amount
@@ -469,7 +470,7 @@ The event captures the recorded fact for downstream consumers and keeps the `Led
 ```ts
 export const RedemptionRecorded = defineEvent({
 	schema: z.object({
-		ledgerEntryId: z.string().min(1),
+		ledgerId: z.string().min(1),
 		cardId: z.string().min(1),
 		transactionId: z.string().min(1),
 		amount: z.number().int().positive()

@@ -44,7 +44,7 @@ Creation policies include `always`, `never`, and `if_missing`.
 Application services choose timing:
 
 * `execute(command, input)` runs the command now.
-* `enqueue(command, input)` accepts now and runs later.
+* `dispatch(command, input)` hands off to messaging infrastructure for distributed execution.
 
 ### Execution Context and Transactions
 
