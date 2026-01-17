@@ -17,7 +17,7 @@ The document takes the vision’s principles as guardrails:
 
 ## Concepts and Definition APIs
 
-The framework concept set is organized around explicit definition APIs that preserve language, boundaries, and constraints. Concepts are declared independently (no nesting inside `defineEntity`) to keep intent clear.
+The framework concept set is organized around explicit definition APIs that preserve language, boundaries, and constraints. Concepts are declared independently to keep intent clear.
 
 * `defineApplicationService`: edge orchestration and timing
 * `defineCommand`: intent to change state
