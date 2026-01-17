@@ -24,7 +24,7 @@ export const redeemCardHandler = defineCommandHandler({
 	command: RedeemCard,
 	handle: async function (cmd) {
 		// no ctx parameter required; ALS provides request scope
-		const giftCardRepository = useContext().giftCardRepository
+		const { giftCardRepository } = useContext()
 		const card = await giftCardRepository.load(cmd.cardId)
 		card.remainingValue -= cmd.amount
 		await giftCardRepository.save(card)
@@ -40,7 +40,7 @@ Repositories provide explicit load/save access while keeping transaction boundar
 export const redeemCardHandler = defineCommandHandler({
 	command: RedeemCard,
 	handle: async function (cmd) {
-		const giftCardRepository = useContext().giftCardRepository
+		const { giftCardRepository } = useContext()
 		const card = await giftCardRepository.load(cmd.cardId)
 		card.remainingValue -= cmd.amount
 		await giftCardRepository.save(card)
