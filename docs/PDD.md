@@ -577,6 +577,15 @@ We may introduce a distinction between:
 
 If adopted, cross-boundary communication would prefer integration events, while domain events remain internal. This decision is intentionally deferred to ADRs.
 
+## Adjacent Concepts (Under the Hood)
+
+These ideas may live beneath the public API but are useful to keep in mind for future ADRs:
+
+* **Repositories**: optional persistence abstraction for loading/saving entities explicitly.
+* **Strategy policies**: centralized selection rules for strategy implementations (tenant/env/context).
+* **Async context**: `AsyncLocalStorage`-backed request scope for tracing, transactions, and utilities.
+* **Transactions**: begin/commit/rollback boundaries that align with command execution.
+
 ## ADR Candidates / Open Questions
 
 This document should feed ADRs for decisions that are still unsettled.
