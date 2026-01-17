@@ -48,6 +48,10 @@ export const redeemCardHandler = defineCommandHandler({
 })
 ```
 
+## Outbox Pattern
+
+Outbox support could provide a reliable way to persist events alongside state changes and publish them asynchronously, ensuring delivery even if the process crashes after a commit.
+
 ## Strategy Policies
 
 Policies centralize strategy selection without scattering conditionals across handlers.
@@ -73,7 +77,3 @@ export const fraudPolicy = defineStrategyPolicy({
 ## Auth Helpers
 
 Authentication wrappers (for example, `withAuth` or `requireUser`) could be offered as opinionated utilities, but they are not required by the core framework.
-
-## Outbox Pattern
-
-Outbox support could provide a reliable way to persist events alongside state changes and publish them asynchronously, ensuring delivery even if the process crashes after a commit.
