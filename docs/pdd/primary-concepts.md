@@ -46,8 +46,6 @@ Application services choose timing:
 * `execute(command, input)` runs the command now.
 * `enqueue(command, input)` accepts now and runs later.
 
-Both are async; “run now” does not mean “sync.”
-
 ### Execution Context and Transactions
 
 Execution runs inside request-scoped context backed by `AsyncLocalStorage`. The framework uses this context to manage tracing, transactions, and persistence lifecycles consistently:
