@@ -43,8 +43,8 @@ Creation policies include `always`, `never`, and `if_missing`.
 
 Application services choose timing:
 
-* `execute(command, input)` runs the command now.
-* `dispatch(command, input)` hands off to messaging infrastructure for distributed execution.
+* `commandHandler.execute(input)` runs the command now.
+* `commandHandler.dispatch(input)` hands off to messaging infrastructure for distributed execution.
 
 ### Execution Context and Transactions
 

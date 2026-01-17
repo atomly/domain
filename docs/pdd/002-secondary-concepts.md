@@ -7,7 +7,7 @@ These ideas are adjacent to the current design and may become first-class concep
 Async context makes request-scoped tracing and transactions available without threading `ctx` everywhere. The framework owns the begin/commit/rollback lifecycle so application code only expresses intent. Handlers and services retrieve context with `useContext()` instead of receiving it as a parameter.
 
 ```ts
-await ctx.commands.execute(IssueCard, input)
+await issueCardHandler.execute(input)
 // framework handles tx begin/commit/rollback and ALS scope (execute stays local)
 ```
 
@@ -15,7 +15,7 @@ If explicit scoping is needed (tests, background jobs), a helper can establish c
 
 ```ts
 await withContext(testContext, async () => {
-	await ctx.commands.execute(IssueCard, input) // local execution in tests
+	await issueCardHandler.execute(input) // local execution in tests
 })
 ```
 
