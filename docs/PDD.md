@@ -577,14 +577,58 @@ We may introduce a distinction between:
 
 If adopted, cross-boundary communication would prefer integration events, while domain events remain internal. This decision is intentionally deferred to ADRs.
 
-## Supporting Infrastructure (Future)
+## Future Concepts and Utilities
 
-These ideas may live beneath the public API but are useful to keep in mind for future ADRs:
+These ideas are adjacent to the current design and may become first-class concepts. Names and APIs are illustrative.
 
-* **Repositories**: optional persistence abstraction for loading/saving entities explicitly.
-* **Strategy policies**: centralized selection rules for strategy implementations (tenant/env/context).
-* **Async context**: `AsyncLocalStorage`-backed request scope for tracing, transactions, and utilities.
-* **Transactions**: begin/commit/rollback boundaries that align with command execution.
+### Strategy Policies
+
+Policies centralize strategy selection without scattering conditionals across handlers.
+
+```ts
+export const FraudAssessment = defineStrategy({ name: 'FraudAssessment' })
+
+export const basicFraud = defineStrategyVariant(FraudAssessment, {
+	name: 'basic',
+	assess: async function () {
+		return 'allow'
+	}
+})
+
+export const fraudPolicy = defineStrategyPolicy({
+	strategy: FraudAssessment,
+	select: function (ctx) {
+		return ctx.tenantId === 'enterprise' ? 'vendorX' : 'basic'
+	}
+})
+```
+
+### Repositories
+
+Repositories provide explicit load/save access when a handler needs direct control.
+
+```ts
+export const redeemCardHandler = defineCommandHandler({
+	command: RedeemCard,
+	handle: async function (cmd, ctx) {
+		const card = await ctx.repositories.load(GiftCard, cmd.cardId)
+		card.remainingValue -= cmd.amount
+		await ctx.repositories.save(GiftCard, card)
+	}
+})
+```
+
+### Async Context and Transactions
+
+Async context makes request-scoped tracing and transactions available without threading `ctx` everywhere.
+
+```ts
+await withContext(ctx, async () => {
+	await ctx.tx.begin()
+	await ctx.commands.execute(IssueCard, input)
+	await ctx.tx.commit()
+})
+```
 
 ## ADR Candidates / Open Questions
 
