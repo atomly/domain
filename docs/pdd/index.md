@@ -1,11 +1,5 @@
 # Preliminary Design Document
 
-## Sections
-
-- [`docs/pdd/primary-concepts.md`](primary-concepts.md)
-- [`docs/pdd/user-stories.md`](user-stories.md)
-- [`docs/pdd/secondary-concepts.md`](secondary-concepts.md)
-
 ## Purpose and Status
 
 This document is a **brainstorming and sanity-check artifact** that explores how the vision in `docs/VISION.md` could translate into framework concepts. It is intentionally **non-binding** and should be read as a starting reference rather than a committed design. The language uses future tense for readability, but nothing here is finalized.
@@ -20,3 +14,9 @@ The document takes the vision’s principles as guardrails:
 * boundaries and invariants remain explicit
 * temporal decoupling is a first-class concern
 * traceability stays visible across time
+
+## Sections
+
+- [`docs/pdd/primary-concepts.md`](primary-concepts.md)
+- [`docs/pdd/user-stories.md`](user-stories.md)
+- [`docs/pdd/secondary-concepts.md`](secondary-concepts.md)
