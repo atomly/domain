@@ -29,7 +29,7 @@ When executing or processing a command with a `target`:
 
 1. Validate input via schema.
 2. Resolve target entity id + creation policy (from the handler).
-3. Load/create entity instance (tracked).
+3. Load/create entity instance (tracked) when a target is specified.
 4. Run invariants:
    * entity-level `before`, then command-level `before`.
 5. Run handler in a staged execution context (events buffered).
