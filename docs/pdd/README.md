@@ -17,7 +17,7 @@ The document takes the vision’s principles as guardrails:
 
 ## Sections
 
-- [`docs/pdd/primary-concepts.md`](primary-concepts.md)
-- [`docs/pdd/user-stories.md`](user-stories.md)
-- [`docs/pdd/secondary-concepts.md`](secondary-concepts.md)
+- [`docs/pdd/000-primary-concepts.md`](000-primary-concepts.md)
+- [`docs/pdd/001-user-stories.md`](001-user-stories.md)
+- [`docs/pdd/002-secondary-concepts.md`](002-secondary-concepts.md)
 - [`docs/pdd/003-infrastructure-adapters.md`](003-infrastructure-adapters.md)

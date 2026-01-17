@@ -6,7 +6,7 @@ These ideas are adjacent to the current design and may become first-class concep
 
 Async context makes request-scoped tracing and transactions available without threading `ctx` everywhere. The framework owns the begin/commit/rollback lifecycle so application code only expresses intent. Handlers and services retrieve context with `useContext()` instead of receiving it as a parameter.
 
-Typical request-scoped capabilities exposed by `useContext()` include auth/identity, logging/metrics, feature flags/config, repositories/adapters, command/event IO, and clocks for deterministic time.
+Typical request-scoped capabilities exposed by `useContext()` include auth/identity, logging/metrics, feature flags/config, repositories/adapters, command/event IO, etc.
 
 ```ts
 await issueCardHandler.execute(input)
