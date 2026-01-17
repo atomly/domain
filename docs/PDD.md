@@ -577,7 +577,7 @@ We may introduce a distinction between:
 
 If adopted, cross-boundary communication would prefer integration events, while domain events remain internal. This decision is intentionally deferred to ADRs.
 
-## Future Concepts and Utilities
+## Additional Framework Concepts
 
 These ideas are adjacent to the current design and may become first-class concepts. Names and APIs are illustrative.
 
