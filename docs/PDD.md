@@ -102,7 +102,7 @@ flowchart LR
   Load --> Invariants[Run Invariants]
   Invariants --> Handle[Run Command Handler]
   Handle --> Persist[Persist Entity]
-  Persist --> Publish[Publish Event(s)]
+  Persist --> Publish[Publish Events]
 ```
 
 #### Command
@@ -209,7 +209,7 @@ flowchart LR
   Load --> Invariants[Run Invariants]
   Invariants --> Handle[Run Command Handler]
   Handle --> Persist[Persist Entity]
-  Persist --> Publish[Publish Event(s)]
+  Persist --> Publish[Publish Events]
 ```
 
 #### Command
