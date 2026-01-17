@@ -40,7 +40,7 @@ These decisions should stay aligned with DDD principles and the vision’s focus
 
 These user stories are thought experiments used to sanity-check the concepts and terminology. The examples map the stories into possible APIs. They are not commitments; they exist to test coherence, terminology, and lifecycle assumptions. The emphasis is on how the concepts could compose, not on final syntax or naming.
 
-Each story describes a business intent (command), how the framework coordinates execution (handlers + invariants), and which facts are emitted (events). Application services sit at the edge to orchestrate application concerns and execution, while domain handlers orchestrate the business logic and raise domain events.
+Each story describes a business intent (command), how the framework coordinates execution (handlers + invariants), and which facts are emitted (events). Application services sit at the edge to orchestrate application concerns and execution, while domain handlers orchestrate the business logic and raise domain events. Execution context is available implicitly via `useContext()`; handlers receive `cmd` and `state` instead of an explicit `ctx` parameter.
 
 ### Shared `GiftCard` Model
 
@@ -78,8 +78,8 @@ export const giftCardRules = defineInvariants({
 		{
 			code: 'GIFT_CARD_NEGATIVE_BALANCE',
 			message: 'Gift card remaining value must never be negative',
-			check: function (_cmd, ctx) {
-				return ctx.state.remainingValue >= 0
+			check: function (_cmd, state) {
+				return state.remainingValue >= 0
 			}
 		}
 	]
@@ -145,7 +145,8 @@ export const issueCardService = defineApplicationService({
 	input: z.object({
 		amount: z.number().int().positive()
 	}),
-	handle: async function (input, ctx) {
+	handle: async function (input) {
+		const ctx = useContext()
 		await ctx.auth.requireUser()
 
 		const cardId = crypto.randomUUID()
@@ -166,9 +167,10 @@ export const issueCardHandler = defineCommandHandler({
 	entity: GiftCard,
 	command: IssueCard,
 	creation: 'always',
-	handle: function (cmd, ctx) {
-		ctx.state.id = cmd.cardId
-		ctx.state.remainingValue = cmd.amount
+	handle: function (cmd, state) {
+		const ctx = useContext()
+		state.id = cmd.cardId
+		state.remainingValue = cmd.amount
 
 		ctx.raise(CardIssued, {
 			cardId: cmd.cardId,
@@ -238,7 +240,8 @@ The application service accepts the request, applies edge concerns, and enqueues
 ```ts
 export const redeemCardService = defineApplicationService({
 	input: RedeemCard.schema,
-	handle: async function (input, ctx) {
+	handle: async function (input) {
+		const ctx = useContext()
 		await ctx.auth.requireUser()
 
 		await ctx.commands.enqueue(RedeemCard, input)
@@ -261,8 +264,8 @@ export const redeemCardRules = defineInvariants({
 		{
 			code: 'GIFT_CARD_INSUFFICIENT_BALANCE',
 			message: 'Cannot redeem more than the remaining gift card value',
-			check: function (cmd, ctx) {
-				return cmd.amount <= ctx.state.remainingValue
+			check: function (cmd, state) {
+				return cmd.amount <= state.remainingValue
 			}
 		}
 	],
@@ -270,8 +273,8 @@ export const redeemCardRules = defineInvariants({
 		{
 			code: 'GIFT_CARD_NEGATIVE_BALANCE',
 			message: 'Gift card remaining value must never be negative',
-			check: function (_cmd, ctx) {
-				return ctx.state.remainingValue >= 0
+			check: function (_cmd, state) {
+				return state.remainingValue >= 0
 			}
 		}
 	]
@@ -287,12 +290,13 @@ export const redeemCardHandler = defineCommandHandler({
 	entity: GiftCard,
 	command: RedeemCard,
 	creation: 'never',
-	handle: function (cmd, ctx) {
+	handle: function (cmd, state) {
+		const ctx = useContext()
 		// Preconditions already ran; postconditions will run before commit.
-		ctx.state.remainingValue -= cmd.amount
+		state.remainingValue -= cmd.amount
 
 		ctx.raise(CardRedeemed, {
-			cardId: ctx.state.id,
+			cardId: state.id,
 			transactionId: cmd.transactionId,
 			amount: cmd.amount
 		})
@@ -354,7 +358,8 @@ The handler reads from the read model and returns a domain-shaped response witho
 ```ts
 export const getGiftCardBalance = defineQueryHandler({
 	query: GetGiftCardBalance,
-	handle: async function (q, ctx) {
+	handle: async function (q) {
+		const ctx = useContext()
 		const row = await ctx.read.giftCards.getById(q.cardId)
 		if (!row) return null
 		return { cardId: row.id, remainingValue: row.remainingValue }
@@ -386,7 +391,8 @@ import crypto from 'node:crypto'
 
 export const onCardRedeemed = defineEventHandler({
 	on: CardRedeemed,
-	handle: async function (evt, ctx) {
+	handle: async function (evt) {
+		const ctx = useContext()
 		await ctx.commands.enqueue(RecordRedemption, {
 			ledgerEntryId: crypto.randomUUID(),
 			cardId: evt.cardId,
@@ -456,11 +462,12 @@ export const recordRedemptionHandler = defineCommandHandler({
 	entity: LedgerEntry,
 	command: RecordRedemption,
 	creation: 'always',
-	handle: function (cmd, ctx) {
-		ctx.state.id = cmd.ledgerEntryId
-		ctx.state.cardId = cmd.cardId
-		ctx.state.transactionId = cmd.transactionId
-		ctx.state.amount = cmd.amount
+	handle: function (cmd, state) {
+		const ctx = useContext()
+		state.id = cmd.ledgerEntryId
+		state.cardId = cmd.cardId
+		state.transactionId = cmd.transactionId
+		state.amount = cmd.amount
 
 		ctx.raise(RedemptionRecorded, {
 			ledgerEntryId: cmd.ledgerEntryId,
@@ -611,7 +618,7 @@ Repositories provide explicit load/save access while keeping transaction boundar
 export const redeemCardHandler = defineCommandHandler({
 	command: RedeemCard,
 	handle: async function (cmd) {
-		const ctx = getContext()
+		const ctx = useContext()
 		const card = await ctx.repositories.load(GiftCard, cmd.cardId)
 		card.remainingValue -= cmd.amount
 		await ctx.repositories.save(GiftCard, card)
@@ -621,18 +628,26 @@ export const redeemCardHandler = defineCommandHandler({
 
 ### Async Context and Transactions
 
-Async context makes request-scoped tracing and transactions available without threading `ctx` everywhere. The framework owns the begin/commit/rollback lifecycle so application code only expresses intent.
+Async context makes request-scoped tracing and transactions available without threading `ctx` everywhere. The framework owns the begin/commit/rollback lifecycle so application code only expresses intent. Handlers and services retrieve context with `useContext()` instead of receiving it as a parameter.
 
 ```ts
 await ctx.commands.execute(IssueCard, input)
 // framework handles tx begin/commit/rollback and ALS scope
 ```
 
+If explicit scoping is needed (tests, background jobs), a helper can establish context:
+
+```ts
+await withContext(testContext, async () => {
+	await ctx.commands.execute(IssueCard, input)
+})
+```
+
 ```ts
 export const redeemCardHandler = defineCommandHandler({
 	command: RedeemCard,
 	handle: async function (cmd) {
-		const ctx = getContext()
+		const ctx = useContext()
 		// no ctx parameter required; ALS provides request scope
 		const card = await ctx.repositories.load(GiftCard, cmd.cardId)
 		card.remainingValue -= cmd.amount
