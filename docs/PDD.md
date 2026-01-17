@@ -97,7 +97,7 @@ This story starts at the edge with `issueCardService`, which accepts input and c
 ```mermaid
 flowchart LR
   HTTP[HTTP Request] --> App[Application Service]
-  App --> Exec[execute(IssueCard)]
+  App --> Exec[execute IssueCard]
   Exec --> Load[Load/Create Entity]
   Load --> Invariants[Run Invariants]
   Invariants --> Handle[Run Command Handler]
@@ -203,7 +203,7 @@ This story begins with `redeemCardService`, which enqueues `RedeemCard`. The fra
 ```mermaid
 flowchart LR
   HTTP[HTTP Request] --> App[Application Service]
-  App --> Enqueue[enqueue(RedeemCard)]
+  App --> Enqueue[enqueue RedeemCard]
   Enqueue --> Queue[Queued Execution]
   Queue --> Load[Load Entity]
   Load --> Invariants[Run Invariants]
