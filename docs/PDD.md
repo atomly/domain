@@ -516,6 +516,17 @@ Application services choose timing:
 
 Both are async; “run now” does not mean “sync.”
 
+### Execution Context and Transactions
+
+Execution runs inside request-scoped context backed by `AsyncLocalStorage`. The framework uses this context to manage tracing, transactions, and persistence lifecycles consistently:
+
+* start a transaction when command execution begins
+* commit when all invariants pass and persistence succeeds
+* roll back on errors or failed invariants
+* expose request-scoped utilities (tracing, auth, ids) without manual plumbing
+
+Testing utilities can create a scoped context to make handlers deterministic without requiring explicit `ctx` wiring.
+
 ### One Entity Write per Command Execution
 
 A command handler is bound to a single entity instance. Cross-entity workflows are expressed through events, event handlers, and additional commands over time.
