@@ -54,7 +54,7 @@ A single command execution boundary yields a consistent entity write and event p
 
 The example below uses `IssueCard` and `CardIssued` to show how the framework validates input, applies invariants, mutates state, and emits a fact in one execution boundary.
 
-This story starts at the edge with `issueCardService`, which accepts input and calls `execute` on `IssueCard`. The framework validates the command schema, loads or creates the `GiftCard` entity, runs invariants, and executes the `issueCardHandler`. The handler applies the state change and raises `CardIssued`, which the framework publishes as the resulting fact.
+This story starts at the edge with `issueCardService`, which accepts input and calls `execute` on `IssueCard`. The framework validates the command schema, loads or creates the `GiftCard` entity, runs invariants, and executes the `issueCardHandler`. The handler initializes the card balance, and the framework persists the updated state before publishing `CardIssued` as the resulting fact.
 
 ```mermaid
 flowchart TD
@@ -167,7 +167,7 @@ export const issueOrRechargeCardHandler = defineCommandHandler({
 	handle: function (cmd, state) {
 		const ctx = useContext()
 		state.id = cmd.cardId
-		state.remainingValue = cmd.amount
+		state.remainingValue += cmd.amount
 
 		ctx.raise(CardIssued, {
 			cardId: cmd.cardId,
@@ -183,7 +183,7 @@ The command is accepted now and converges later through queued execution. The fr
 
 The example below uses `RedeemCard` and `CardRedeemed` to show how the framework queues work, runs invariants on execution, and publishes the resulting event.
 
-This story begins with `redeemCardService`, which enqueues `RedeemCard`. The framework stores the work and later executes it by loading the `GiftCard`, enforcing `redeemCardRules`, running `redeemCardHandler`, and publishing `CardRedeemed`. The delay makes the workflow eventually consistent while keeping domain rules intact.
+This story begins with `redeemCardService`, which enqueues `RedeemCard`. The framework stores the work and later executes it by loading the `GiftCard`, enforcing `redeemCardRules`, running `redeemCardHandler`, and publishing `CardRedeemed`. The handler subtracts the redeemed amount from the remaining balance and emits the redemption event. The delay makes the workflow eventually consistent because the command is accepted immediately but applied later, allowing asynchronous processing and retries while preserving domain rules.
 
 ```mermaid
 flowchart TD
@@ -354,7 +354,7 @@ export const getGiftCardBalance = defineQueryHandler({
 
 The `Ledger` context reacts to `GiftCard.CardRedeemed`, translating the upstream fact into a local command and event while preserving boundary language. This shows how the framework keeps cross-boundary workflows decoupled through events.
 
-This story starts when the `Ledger` event handler receives `GiftCard.CardRedeemed`. The handler enqueues `RecordRedemption`, the framework executes it against `LedgerEntry`, and `recordRedemptionHandler` raises `RedemptionRecorded`. The event keeps the workflow moving across boundaries without direct calls.
+This story starts when the `Ledger` event handler receives `GiftCard.CardRedeemed`. The handler enqueues `RecordRedemption`, the framework executes it against `LedgerEntry`, and `recordRedemptionHandler` raises `RedemptionRecorded`. The ledger entry records the transaction for reporting and reconciliation, keeping the workflow moving across boundaries without direct calls.
 
 ```mermaid
 flowchart TD
