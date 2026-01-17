@@ -605,12 +605,13 @@ export const fraudPolicy = defineStrategyPolicy({
 
 ### Repositories
 
-Repositories provide explicit load/save access when a handler needs direct control.
+Repositories provide explicit load/save access while keeping transaction boundaries and identity resolution inside the framework. Handlers can focus on domain decisions without manual persistence plumbing.
 
 ```ts
 export const redeemCardHandler = defineCommandHandler({
 	command: RedeemCard,
-	handle: async function (cmd, ctx) {
+	handle: async function (cmd) {
+		const ctx = getContext()
 		const card = await ctx.repositories.load(GiftCard, cmd.cardId)
 		card.remainingValue -= cmd.amount
 		await ctx.repositories.save(GiftCard, card)
@@ -620,13 +621,31 @@ export const redeemCardHandler = defineCommandHandler({
 
 ### Async Context and Transactions
 
-Async context makes request-scoped tracing and transactions available without threading `ctx` everywhere.
+Async context makes request-scoped tracing and transactions available without threading `ctx` everywhere. The framework owns the begin/commit/rollback lifecycle so application code only expresses intent.
 
 ```ts
-await withContext(ctx, async () => {
-	await ctx.tx.begin()
+await ctx.commands.execute(IssueCard, input)
+// framework handles tx begin/commit/rollback and ALS scope
+```
+
+```ts
+export const redeemCardHandler = defineCommandHandler({
+	command: RedeemCard,
+	handle: async function (cmd) {
+		const ctx = getContext()
+		// no ctx parameter required; ALS provides request scope
+		const card = await ctx.repositories.load(GiftCard, cmd.cardId)
+		card.remainingValue -= cmd.amount
+		await ctx.repositories.save(GiftCard, card)
+	}
+})
+```
+
+If explicit scoping is needed (tests, background jobs), a helper can establish context:
+
+```ts
+await withContext(testContext, async () => {
 	await ctx.commands.execute(IssueCard, input)
-	await ctx.tx.commit()
 })
 ```
 
