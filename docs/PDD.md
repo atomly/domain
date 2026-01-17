@@ -316,16 +316,16 @@ export const CardRedeemed = defineEvent({
 
 ### Check Gift Card Balance (Read Use Case)
 
-The `QueryHandler` reads from a read model/projection. We use `defineQuery` and `defineQueryHandler` so reads stay explicit and separate from command workflows.
+The `QueryHandler` reads from a read model. We use `defineQuery` and `defineQueryHandler` so reads stay explicit and separate from command workflows.
 
 The query story shows how read models stay isolated from write-side invariants and handlers.
 
-This story uses `GetGiftCardBalance` as a read-only request. The framework validates the query schema, routes it to `getGiftCardBalance`, and returns the projection without touching domain state.
+This story uses `GetGiftCardBalance` as a read-only request. The framework validates the query schema, routes it to `getGiftCardBalance`, and returns the read model without touching domain state.
 
 ```mermaid
 flowchart TD
   Query[GiftCard.GetBalance] --> Handler[Query Handler]
-  Handler --> ReadModel[Read Model / Projection]
+  Handler --> ReadModel[Read Model]
   ReadModel --> Result[Return Balance]
 ```
 
@@ -349,7 +349,7 @@ export const GetGiftCardBalance = defineQuery({
 
 #### Query Handler (Application Layer)
 
-The handler reads from the projection and returns a domain-shaped response without mutating state.
+The handler reads from the read model and returns a domain-shaped response without mutating state.
 
 ```ts
 export const getGiftCardBalance = defineQueryHandler({
