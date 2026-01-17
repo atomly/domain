@@ -496,8 +496,6 @@ When executing or processing a command with a `target`:
 1. Validate input via schema.
 2. Resolve target entity id + creation policy (from the handler).
 3. Load/create entity instance (tracked).
-
-Creation policies include `always`, `never`, and `if_missing`.
 4. Run invariants:
 
    * entity-level `before`, then command-level `before`.
@@ -506,6 +504,8 @@ Creation policies include `always`, `never`, and `if_missing`.
 
    * command-level `after`, then entity-level `after`.
 7. Persist entity + publish buffered events (only if all checks pass).
+
+Creation policies include `always`, `never`, and `if_missing`.
 
 ### Temporal Decoupling
 
