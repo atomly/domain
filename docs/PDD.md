@@ -95,7 +95,7 @@ The example below uses `IssueCard` and `CardIssued` to show how the framework va
 This story starts at the edge with `issueCardService`, which accepts input and calls `execute` on `IssueCard`. The framework validates the command schema, loads or creates the `GiftCard` entity, runs invariants, and executes the `issueCardHandler`. The handler applies the state change and raises `CardIssued`, which the framework publishes as the resulting fact.
 
 ```mermaid
-flowchart LR
+flowchart TD
   HTTP[HTTP Request] --> App[Application Service]
   App --> Exec[execute IssueCard]
   Exec --> Load[Load/Create Entity]
@@ -201,7 +201,7 @@ The example below uses `RedeemCard` and `CardRedeemed` to show how the framework
 This story begins with `redeemCardService`, which enqueues `RedeemCard`. The framework stores the work and later executes it by loading the `GiftCard`, enforcing `redeemCardRules`, running `redeemCardHandler`, and publishing `CardRedeemed`. The delay makes the workflow eventually consistent while keeping domain rules intact.
 
 ```mermaid
-flowchart LR
+flowchart TD
   HTTP[HTTP Request] --> App[Application Service]
   App --> Enqueue[enqueue RedeemCard]
   Enqueue --> Queue[Queued Execution]
@@ -323,7 +323,7 @@ The query story shows how read models stay isolated from write-side invariants a
 This story uses `GetGiftCardBalance` as a read-only request. The framework validates the query schema, routes it to `getGiftCardBalance`, and returns the projection without touching domain state.
 
 ```mermaid
-flowchart LR
+flowchart TD
   Query[GiftCard.GetBalance] --> Handler[Query Handler]
   Handler --> ReadModel[Read Model / Projection]
   ReadModel --> Result[Return Balance]
@@ -369,7 +369,7 @@ The `Ledger` context reacts to `GiftCard.CardRedeemed`, translating the upstream
 This story starts when the `Ledger` event handler receives `GiftCard.CardRedeemed`. The handler enqueues `RecordRedemption`, the framework executes it against `LedgerEntry`, and `recordRedemptionHandler` raises `RedemptionRecorded`. The event keeps the workflow moving across boundaries without direct calls.
 
 ```mermaid
-flowchart LR
+flowchart TD
   Redeemed[GiftCard.CardRedeemed] --> Handler[Ledger Event Handler]
   Handler --> Enqueue[Enqueue Ledger.RecordRedemption]
   Enqueue --> LedgerHandler[Ledger Command Handler]
