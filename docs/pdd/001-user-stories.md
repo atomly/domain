@@ -183,13 +183,13 @@ The command is accepted now and converges later through queued execution. The fr
 
 The example below uses `RedeemCard` and `CardRedeemed` to show how the framework queues work, runs invariants on execution, and publishes the resulting event.
 
-This story begins with `redeemCardService`, which enqueues `RedeemCard`. The framework stores the work and later executes it by loading the `GiftCard`, enforcing `redeemCardRules`, running `redeemCardHandler`, and publishing `CardRedeemed`. The handler subtracts the redeemed amount from the remaining balance and emits the redemption event. The delay makes the workflow eventually consistent because the command is accepted immediately but applied later, allowing asynchronous processing and retries while preserving domain rules.
+This story begins with `redeemCardService`, which dispatches `RedeemCard` to messaging. The framework stores the work and later executes it by loading the `GiftCard`, enforcing `redeemCardRules`, running `redeemCardHandler`, and publishing `CardRedeemed`. The handler subtracts the redeemed amount from the remaining balance and emits the redemption event. The delay makes the workflow eventually consistent because the command is accepted immediately but applied later, allowing asynchronous processing and retries while preserving domain rules.
 
 ```mermaid
 flowchart TD
   HTTP[HTTP Request] --> App[Application Service]
-  App --> Enqueue[enqueue RedeemCard]
-  Enqueue --> Queue[Queued Execution]
+  App --> Dispatch[dispatch RedeemCard]
+  Dispatch --> Queue[Queued Execution]
   Queue --> Load[Load Entity]
   Load --> Invariants[Run Invariants]
   Invariants --> Handle[Run Command Handler]
@@ -218,7 +218,7 @@ export const RedeemCard = defineCommand({
 
 ### Application Service
 
-The application service accepts the request, applies edge concerns, and enqueues the command for later execution. This makes the eventual consistency boundary explicit in the API.
+The application service accepts the request, applies edge concerns, and dispatches the command to messaging for later execution. This makes the eventual consistency boundary explicit in the API.
 
 ```ts
 export const redeemCardService = defineApplicationService({
@@ -227,7 +227,7 @@ export const redeemCardService = defineApplicationService({
 		const ctx = useContext()
 		await ctx.auth.requireUser()
 
-		await ctx.commands.enqueue(RedeemCard, input)
+		await ctx.commands.dispatch(RedeemCard, input)
 
 		return { accepted: true }
 	}
@@ -354,7 +354,7 @@ export const getGiftCardBalance = defineQueryHandler({
 
 The `Ledger` context reacts to `GiftCard.CardRedeemed`, translating the upstream fact into a local command and event while preserving boundary language. This shows how the framework keeps cross-boundary workflows decoupled through events.
 
-This story starts when the `Ledger` event handler receives `GiftCard.CardRedeemed`. The handler enqueues `RecordRedemption`, the framework executes it against `LedgerEntry`, and `recordRedemptionHandler` raises `RedemptionRecorded`. The ledger entry records the transaction for reporting and reconciliation, keeping the workflow moving across boundaries without direct calls.
+This story starts when the `Ledger` event handler receives `GiftCard.CardRedeemed`. The handler dispatches `RecordRedemption` to messaging, the framework executes it against `LedgerEntry`, and `recordRedemptionHandler` raises `RedemptionRecorded`. The ledger entry records the transaction for reporting and reconciliation, keeping the workflow moving across boundaries without direct calls.
 
 ```mermaid
 flowchart TD
@@ -376,7 +376,7 @@ export const onCardRedeemed = defineEventHandler({
 	on: CardRedeemed,
 	handle: async function (evt) {
 		const ctx = useContext()
-		await ctx.commands.enqueue(RecordRedemption, {
+		await ctx.commands.dispatch(RecordRedemption, {
 			ledgerEntryId: crypto.randomUUID(),
 			cardId: evt.cardId,
 			transactionId: evt.transactionId,
