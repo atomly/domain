@@ -125,7 +125,7 @@ export const IssueCard = defineCommand({
 
 #### Application Services (Edge Concerns Only)
 
-Application services translate transport concerns into domain inputs and pick execution timing. They also generate any new identifiers before executing or enqueuing commands. We use `defineApplicationService` to keep edge logic separate from domain decisions.
+Application services translate transport concerns into domain inputs and pick execution timing. They also generate any new identifiers before executing or enqueuing commands. We use `defineApplicationService` to keep edge logic separate from domain decisions. Authentication helpers like `requireUser()` are optional conveniences, not core framework concepts.
 
 Application services *should* not:
 
@@ -584,9 +584,13 @@ We may introduce a distinction between:
 
 If adopted, cross-boundary communication would prefer integration events, while domain events remain internal. This decision is intentionally deferred to ADRs.
 
-## Additional Framework Concepts
+## Secondary Framework Concepts
 
 These ideas are adjacent to the current design and may become first-class concepts. Names and APIs are illustrative.
+
+### Auth Helpers
+
+Authentication wrappers (for example, `withAuth` or `requireUser`) could be offered as opinionated utilities, but they are not required by the core framework.
 
 ### Strategy Policies
 
