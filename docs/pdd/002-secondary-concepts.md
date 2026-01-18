@@ -4,9 +4,9 @@ These ideas are adjacent to the current design and may become first-class concep
 
 ## Async Context and Transactions
 
-Async context makes request-scoped tracing and transactions available without threading `ctx` everywhere. The framework owns the begin/commit/rollback lifecycle so application code only expresses intent. Handlers and services retrieve context with `useContext()` instead of receiving it as a parameter.
+Async context will make request-scoped tracing and transactions available without threading `ctx` everywhere. The framework will own the begin/commit/rollback lifecycle so application code only expresses intent. Handlers and services will retrieve context with `useContext()` instead of receiving it as a parameter.
 
-Typical request-scoped capabilities exposed by `useContext()` include auth/identity, logging/metrics, feature flags/config, repositories/adapters, command/event IO, etc.
+Typical request-scoped capabilities exposed by `useContext()` should include auth/identity, logging/metrics, feature flags/config, repositories/adapters, command/event IO, etc.
 
 ```ts
 await issueCardHandler.execute(input)
@@ -23,18 +23,21 @@ await withContext(testContext, async () => {
 
 ## Repositories
 
-Repositories provide explicit load/save access while keeping transaction boundaries and identity resolution inside the framework. Handlers can focus on domain decisions without manual persistence plumbing.
+Repositories should provide explicit load/save access while keeping transaction boundaries and identity resolution inside the framework. Application services can use repositories to fetch context before orchestrating command execution so handlers stay focused on domain decisions.
 
 ```ts
-export const redeemCardHandler = defineCommandHandler({
-	command: RedeemCard,
-	handle: async function (cmd) {
-		const { giftCardRepository } = useContext()
-		const card = await giftCardRepository.load(cmd.cardId)
-		card.remainingValue -= cmd.amount
-		await giftCardRepository.save(card)
-	}
-})
+export const redeemCardService = defineApplicationService()
+  .input(RedeemCard.schema)
+  .handle(async (command) => {
+    const giftCardRepository = useRepository(GiftCardRepository)
+    const card = await giftCardRepository.load(command.cardId)
+
+    if (!card) return { accepted: false }
+
+    await redeemCardHandler.execute(command)
+
+    return { accepted: true }
+  })
 ```
 
 ## Outbox Pattern
@@ -46,21 +49,15 @@ Outbox support could provide a reliable way to persist events alongside state ch
 Policies centralize strategy selection without scattering conditionals across handlers.
 
 ```ts
-export const FraudAssessment = defineStrategy({ name: 'FraudAssessment' })
+export const FraudAssessment = defineStrategy().name('FraudAssessment')
 
-export const basicFraud = defineStrategyVariant(FraudAssessment, {
-	name: 'basic',
-	assess: async function () {
-		return 'allow'
-	}
-})
+export const basicFraud = defineStrategyVariant(FraudAssessment)
+  .name('basic')
+  .assess(async () => 'allow')
 
-export const fraudPolicy = defineStrategyPolicy({
-	strategy: FraudAssessment,
-	select: function (ctx) {
-		return ctx.tenantId === 'enterprise' ? 'vendorX' : 'basic'
-	}
-})
+export const fraudPolicy = defineStrategyPolicy()
+  .strategy(FraudAssessment)
+  .select((ctx) => (ctx.tenantId === 'enterprise' ? 'vendorX' : 'basic'))
 ```
 
 ## Auth Helpers

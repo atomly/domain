@@ -7,7 +7,7 @@ The framework concept set is organized around explicit definition APIs that pres
 * `defineApplicationService`: edge orchestration and timing
 * `defineCommand`: intent to change state
 * `defineCommandHandler`: domain decision point for commands
-* `defineEntity`: domain state and identity (use `parent` for child entities)
+* `defineEntity`: domain state and identity
 * `defineInvariants`: business rules around state transitions
 * `defineEvent`: change that occurred
 * `defineEventHandler`: reaction to domain events
@@ -30,11 +30,9 @@ When executing or processing a command with a `target`:
 1. Validate input via schema.
 2. Resolve target entity id + creation policy (from the handler).
 3. Load/create entity instance (tracked) when a target is specified.
-4. Run invariants:
-   * entity-level `before`, then command-level `before`.
+4. Run invariants scoped with `when(command)` before the handler.
 5. Run handler in a staged execution context (events buffered).
-6. Run invariants:
-   * command-level `after`, then entity-level `after`.
+6. Run invariants without `when` at the end of execution.
 7. Persist entity + publish buffered events (only if all checks pass).
 
 Creation policies include `always`, `never`, and `if_missing`.
@@ -44,18 +42,18 @@ Creation policies include `always`, `never`, and `if_missing`.
 Application services choose timing:
 
 * `commandHandler.execute(input)` runs the command now.
-* `commandHandler.dispatch(input)` hands off to messaging infrastructure for distributed execution.
+* `commandHandler.publish(input)` hands off to messaging infrastructure for distributed execution (future concern).
 
 ### Execution Context and Transactions
 
-Execution runs inside request-scoped context backed by `AsyncLocalStorage`. The framework uses this context to manage tracing, transactions, and persistence lifecycles consistently:
+Execution runs inside request-scoped context backed by `AsyncLocalStorage`. The framework will use this context to manage tracing, transactions, and persistence lifecycles consistently:
 
 * start a transaction when command execution begins
 * commit when all invariants pass and persistence succeeds
 * roll back on errors or failed invariants
 * expose request-scoped utilities (tracing, auth, ids) without manual plumbing
 
-Testing utilities can create a scoped context to make handlers deterministic without requiring explicit `ctx` wiring.
+Testing utilities should create a scoped context to make handlers deterministic without requiring explicit `ctx` wiring.
 
 ### One Entity Write per Command Execution
 
@@ -65,7 +63,7 @@ Any future allowance for multi-entity writes would require a deliberate ADR.
 
 ## Traceability and Observability (Exploratory)
 
-Traceability is shown here as a framework-owned default and may be scoped differently in ADRs. Application code does not manage tracing; the framework handles propagation, spans, and export end to end.
+Traceability is shown here as a framework-owned default and may be scoped differently in ADRs. Application code should not manage tracing; the framework will handle propagation, spans, and export end to end.
 
 ### Tracing Architecture
 
@@ -90,7 +88,7 @@ The framework will:
 * create spans for key lifecycle phases (application services, command execution, event handling)
 * export telemetry via OTLP (configurable)
 
-Application code will not manually construct tracing metadata.
+Application code should not manually construct tracing metadata.
 
 ## Boundaries
 
