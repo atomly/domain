@@ -11,6 +11,7 @@ They *should*:
 
 * handle application concerns (auth, mapping, response shaping)
 * orchestrate command processing timeline: execute (immediate) vs. publish (messaging/distributed)
+* initialize the ALS context for a use case
 * *sometimes* manage persistence
 
 ```ts
@@ -32,6 +33,8 @@ export const issueCardService = defineApplicationService()
     return { cardId }
   })
 ```
+
+Application services should accept an optional `context` seed (trace IDs, auth, request metadata) so controllers can pass request-level data without owning the ALS lifecycle. For example, `issueCardService.handle(input, { context })`.
 
 ## Service Composition Patterns
 

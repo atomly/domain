@@ -1,18 +1,19 @@
 # Infrastructure
 
-This document sketches how adapters could be registered and resolved using ALS-powered context, while keeping domain code ergonomic and explicit.
+This document sketches how adapters and providers could be registered and resolved using ALS-powered context, while keeping domain code ergonomic and explicit.
 
 ## Adapters
 
-Adapters should connect the framework to infrastructure concerns (databases, messaging, observability, etc.). For v0 we should use **explicit registration** instead of auto-registration to keep behavior transparent and debuggable. Abstract classes should act as ports (and DI tokens), while concrete classes implement the adapters.
+Adapters should connect the framework to infrastructure concerns (databases, messaging, observability, etc.). For v0 we should use **explicit registration** instead of auto-registration to keep behavior transparent and debuggable. Abstract classes should act as ports, while concrete classes implement the adapters. Providers are the DI layer that supplies these adapters (and other app services) at runtime.
 
 - Provide a DI-like experience without hard dependencies on a DI framework.
+- Use providers as the DI mechanism, while adapters remain the port/adapter abstraction.
 - Keep domain code functional while allowing adapters to be class-based.
 - Resolve adapters from request scope via ALS.
 
 ### Dependency Injection
 
-Use abstract classes as DI tokens. Implementations should be registered with the framework and resolved via core APIs such as `useRepository`, `useLogger`, `useMetrics`, `useTracer`, or `useAdapter` for custom adapters.
+Use abstract classes as DI tokens. Implementations should be registered with the framework and resolved via core APIs such as `useRepository`, `useLogger`, `useMetrics`, `useTracer`, or `useProvider` for custom providers.
 
 Register implementations at the framework boundary:
 
@@ -25,7 +26,7 @@ const framework = createFramework()
 	.provide(CommandPublisher, new LocalCommandPublisher())
 ```
 
-This fluent builder style mirrors modern DX patterns in tools like tRPC and TanStack by keeping configuration declarative and discoverable.
+This fluent builder style mirrors modern DX patterns in tools like tRPC and TanStack by keeping configuration declarative and discoverable. Provider registration can be backed by an Effect-style `provideService` mechanism.
 
 Resolve inside handlers and services:
 
@@ -41,7 +42,7 @@ This keeps domain code clean while relying on explicit adapter wiring at boot.
 Alternate possible explicit registration API (if the builder pattern is not available):
 
 ```ts
-const registry = createAdapterRegistry()
+const registry = createProviderRegistry()
 
 registry.registerRepository(GiftCardRepository, new PostgresGiftCardRepository(pg))
 registry.registerLogger(new PinoLoggerAdapter())
@@ -49,7 +50,7 @@ registry.registerMetrics(new OtelMetricsAdapter(otel))
 registry.registerTracing(new OpenTelemetryAdapter(otel))
 registry.registerCommandPublisher(new LocalCommandPublisher())
 
-const framework = createFramework({ adapters: registry })
+const framework = createFramework({ providers: registry })
 ```
 
 ### ALS-backed APIs
@@ -69,7 +70,7 @@ Hooks should include:
 - `useLogger`
 - `useMetrics`
 - `useTracer`
-- `useAdapter`
+- `useProvider`
 
 Example shorthand:
 
@@ -79,7 +80,7 @@ raise(CardIssued, payload)
 
 ### Provider Overrides
 
-Request-scoped provider overrides can be defined at the application-service boundary without pushing wiring into handlers:
+Request-scoped provider overrides can be defined at the application-service boundary without pushing wiring into handlers. Providers can be backed by an Effect `provideService`-style registry to keep DI explicit but lightweight.
 
 ```ts
 export const issueCardService = defineApplicationService()
@@ -110,37 +111,12 @@ The list below is not exhaustive, but it captures the key integration points and
 - `EventSubscriber`: consumes inbound events and invokes event handlers.
 - `LoggerAdapter`: structured logging with correlation context.
 - `MetricsAdapter`: counters, gauges, histograms, and summaries.
-- `TracingAdapter`: spans, context propagation, and OTEL export. (See [`docs/pdd/007-observability.md`](007-observability.md).)
+- `TracingAdapter`: spans, context propagation, and OTEL export. (See [`docs/pdd/008-observability.md`](008-observability.md).)
 - `EntityRepository`: persistence port for loading/saving entity state.
 
 #### Repository Adapters
 
-Repositories should implement the persistence port. Base implementations can use your ALS-powered transaction manager, while concrete adapters extend them. This should align with Drizzle-like DX: a thin adapter layer over explicit queries.
-
-```ts
-export abstract class PostgresRepository<TState> extends EntityRepository<TState> {
-	constructor(protected readonly tx: PgTransaction) {
-		super()
-	}
-
-	protected get db() {
-		return this.tx.context
-	}
-}
-
-export class PostgresGiftCardRepository extends PostgresRepository<GiftCardState> {
-	async load(id: string) {
-		return this.db.query.giftCards.findFirst({ where: eq(giftCards.id, id) })
-	}
-
-	async save(state: GiftCardState) {
-		await this.db.insert(giftCards).values(state).onConflictDoUpdate({
-			target: giftCards.id,
-			set: state
-		})
-	}
-}
-```
+Repository adapter details live in [`docs/pdd/006-repositories.md`](006-repositories.md). Infrastructure still registers repositories through the provider registry so they can be resolved via `useRepository`.
 
 #### Transport Adapters
 
@@ -193,7 +169,7 @@ export class LocalEventSubscriber extends EventSubscriber {
 
 #### Observability Adapters
 
-Observability adapter details live in [`docs/pdd/007-observability.md`](007-observability.md). Infrastructure still registers the adapters through `createFramework().provide(...)` so logging, metrics, and tracing stay consistent across transports.
+Observability adapter details live in [`docs/pdd/008-observability.md`](008-observability.md). Infrastructure still registers the adapters through `createFramework().provide(...)` so logging, metrics, and tracing stay consistent across transports.
 
 ### Secondary Adapters
 

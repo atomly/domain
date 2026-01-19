@@ -56,5 +56,5 @@ export abstract class TracingAdapter {
 ## Integration Notes
 
 - Framework and router instrumentation should share one OpenTelemetry SDK so spans land in the same pipeline.
-- Adapter registration happens at boot; request-scoped access uses `useLogger`, `useMetrics`, and `useTracer`.
+- Adapter registration happens at boot; request-scoped access uses `useLogger`, `useMetrics`, and `useTracer` via the provider registry.
 - Application code should not manually construct tracing metadata.

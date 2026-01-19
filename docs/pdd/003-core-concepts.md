@@ -67,6 +67,8 @@ export const issueCardHandler = defineCommandHandler()
   })
 ```
 
+Entity-bound handlers require a command with a `target` function. Commands without a target cannot bind to an entity; the handler should be configured without `.entity(...)` and manage repository access manually. A command with a `target` but no `.entity(...)` on the handler is an open design choice (stateless handler vs configuration error).
+
 ### Entity
 
 ```ts
@@ -78,6 +80,45 @@ export const GiftCard = defineEntity()
     })
   )
   .id((state) => state.id)
+```
+
+#### Class-based Entity API
+
+Entities can remain simple classes while command handlers are expressed as composable subclasses. The handler class owns the command metadata and the `handle` method, and composing it into the entity binds the handler to that entity instance (so `this` is the state).
+
+```ts
+type CommandType<T> = T extends CommandDefinition<infer Input> ? Input : never
+
+abstract class Entity<TId = string> {
+  abstract id: TId
+  equals(other: Entity<TId>) {
+    return this.constructor === other.constructor && this.id === other.id
+  }
+}
+
+class BaseModel extends Entity {
+  constructor(
+    public id: string,
+    public remainingValue: number
+  ) {}
+}
+
+class RedeemCardHandler extends CommandHandler<BaseModel>({
+  command: RedeemCard,
+  creation: 'never'
+}) {
+  handle(command: CommandType<typeof RedeemCard>) {
+    this.balance -= command.amount
+    raise(CardRedeemed, { cardId: command.cardId, amount: command.amount })
+  }
+}
+
+class GiftCard extends compose(BaseModel, RedeemCardHandler) {}
+
+withContext(() => {
+  const giftCard = new GiftCard('123', 100)
+  giftCard.redeem(50)
+})
 ```
 
 ### Invariants
@@ -167,7 +208,7 @@ The runtime lifecycle and execution semantics are described in [`docs/pdd/004-ru
 
 ## Observability
 
-Observability is a framework-owned concern that should stay consistent across transports and handlers. The detailed observability model lives in [`docs/pdd/007-observability.md`](007-observability.md).
+Observability is a framework-owned concern that should stay consistent across transports and handlers. The detailed observability model lives in [`docs/pdd/008-observability.md`](008-observability.md).
 
 ## Boundaries
 

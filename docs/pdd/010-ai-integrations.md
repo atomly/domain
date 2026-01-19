@@ -82,7 +82,7 @@ Application services should be allowed to return streams so transports can strea
 export const supportAgentService = defineApplicationService()
 	.input(SupportQueryInput)
 	.handle(async (input) => {
-		const ai = useAdapter(AiProvider)
+		const ai = useProvider(AiProvider)
 		return ai.streamText({
 			model: openai('gpt-4o-mini'),
 			prompt: input.message
@@ -92,5 +92,5 @@ export const supportAgentService = defineApplicationService()
 
 ## Observability
 
-AI integrations should emit consistent signals (span names, attributes, metrics, logs) through the framework observability adapters described in [`docs/pdd/007-observability.md`](007-observability.md).
+AI integrations should emit consistent signals (span names, attributes, metrics, logs) through the framework observability adapters described in [`docs/pdd/008-observability.md`](008-observability.md).
 

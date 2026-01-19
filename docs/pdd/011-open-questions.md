@@ -9,6 +9,7 @@ These items should feed ADRs for decisions that are still unsettled.
 - Entity state schemas: required vs optional and how they integrate with persistence.
 - Integration events vs domain events for cross-context boundaries.
 - Traceability defaults and which spans are mandatory vs configurable.
+- Command `target` without `.entity(...)`: allow as stateless routing or treat as config error.
 
 ## AI Integrations
 
