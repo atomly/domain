@@ -259,7 +259,7 @@ wsServer.on('message', async (message) => {
 
 ## Framework Integrations
 
-Rather than owning the full controller stack, we should integrate directly with established routers. For v0, the preferred path is oRPC because it gives us adapters, OpenAPI support, and streaming without additional framework complexity. A small `@framework/orpc-controller` package can provide the glue (base procedure, context wiring, and observability hooks) so teams don’t need to hand-roll this integration. The integration should share a single OpenTelemetry SDK so oRPC spans and framework spans land in the same trace pipeline.
+Rather than owning the full controller stack, we should integrate directly with established routers. For v0, the preferred path is oRPC because it gives us adapters, OpenAPI support, and streaming without additional framework complexity. A small `@framework/orpc-controller` package can provide the glue (base procedure, context wiring, and observability hooks) so teams don’t need to hand-roll this integration. Observability standards and adapter responsibilities live in [`docs/pdd/007-observability.md`](007-observability.md).
 
 ### oRPC Integration
 

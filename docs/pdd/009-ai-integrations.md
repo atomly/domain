@@ -92,16 +92,5 @@ export const supportAgentService = defineApplicationService()
 
 ## Observability
 
-Observability adapters should capture AI signals consistently:
+AI integrations should emit consistent signals (span names, attributes, metrics, logs) through the framework observability adapters described in [`docs/pdd/007-observability.md`](007-observability.md).
 
-- span name: `AI.Generate` / `AI.Stream`
-- attributes: model, provider, prompt length, tool count
-- metrics: token counts, cost, latency
-- logs: request/response summaries with redaction
-
-## Future Considerations
-
-- Tool approval workflows before executing commands.
-- MCP tools (Model Context Protocol) as adapters.
-- Per-tenant model routing and quotas.
-- Structured output validation with Zod/JSON schema before command execution.

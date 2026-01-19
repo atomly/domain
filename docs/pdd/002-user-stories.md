@@ -1,8 +1,10 @@
-# User Stories (Exploratory)
+# User Stories
 
 These user stories are thought experiments used to sanity-check the concepts and terminology. The examples map the stories into possible APIs. They are not commitments; they exist to test coherence, terminology, and lifecycle assumptions. The emphasis is on how the concepts could compose, not on final syntax or naming.
 
-Each story describes a business intent (command), how the framework coordinates execution (handlers + invariants), and which facts are emitted (events). Application services sit at the edge to orchestrate application concerns and execution, while domain handlers orchestrate the business logic and raise domain events. Execution context will be available implicitly via `useContext()`; handlers will receive `cmd` and `state` instead of an explicit `ctx` parameter.
+Each story describes a business intent (command), how the framework coordinates execution (handlers + invariants), and which facts are emitted (events). Application services sit at the edge to orchestrate application concerns and execution, while domain handlers orchestrate the business logic and raise domain events.
+
+Let's dive into a few user stories.
 
 ## Shared `GiftCard` Model
 
@@ -197,7 +199,7 @@ export const issueOrRechargeCardHandler = defineCommandHandler()
   })
 ```
 
-## Redeem a Gift Card (Eventually Consistent Use Case)
+## Redeem a Gift Card (Temporally Decoupled & Eventually Consistent Use Case)
 
 The command will be accepted now and will converge later through queued execution. The framework will run invariants and handlers when the command is dequeued, not at request time.
 
@@ -210,7 +212,6 @@ flowchart TD
   HTTP[HTTP Request] --> App[Application Service]
 App --> Publish[publish RedeemCard]
 Publish --> Queue[Queued Execution]
-
   Queue --> Load[Load Entity]
   Load --> Invariants[Run Invariants]
   Invariants --> Handle[Run Command Handler]
@@ -262,7 +263,7 @@ export const redeemCardHandler = defineCommandHandler()
   .command(RedeemCard)
   .creation('never')
   .handle((command, state) => {
-    // Preconditions already ran; postconditions will run before commit.
+    //Preconditions already ran; postconditions will run before commit.
     state.remainingValue -= command.amount
 
     raise(CardRedeemed, {

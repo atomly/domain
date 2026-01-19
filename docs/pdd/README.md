@@ -17,9 +17,13 @@ The document takes the vision’s principles as guardrails:
 
 ## Sections
 
-- [`docs/pdd/000-primary-concepts.md`](000-primary-concepts.md)
-- [`docs/pdd/001-user-stories.md`](001-user-stories.md)
-- [`docs/pdd/002-secondary-concepts.md`](002-secondary-concepts.md)
-- [`docs/pdd/003-infrastructure.md`](003-infrastructure.md)
-- [`docs/pdd/004-ai-integrations.md`](004-ai-integrations.md)
-- [`docs/pdd/005-controllers.md`](005-controllers.md)
+- [`docs/pdd/001-introduction.md`](001-introduction.md)
+- [`docs/pdd/002-user-stories.md`](002-user-stories.md)
+- [`docs/pdd/003-core-concepts.md`](003-core-concepts.md)
+- [`docs/pdd/004-runtime-model.md`](004-runtime-model.md)
+- [`docs/pdd/005-application-layer.md`](005-application-layer.md)
+- [`docs/pdd/006-infrastructure.md`](006-infrastructure.md)
+- [`docs/pdd/007-observability.md`](007-observability.md)
+- [`docs/pdd/008-controllers.md`](008-controllers.md)
+- [`docs/pdd/009-ai-integrations.md`](009-ai-integrations.md)
+- [`docs/pdd/010-open-questions.md`](010-open-questions.md)

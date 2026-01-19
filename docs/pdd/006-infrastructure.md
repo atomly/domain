@@ -4,7 +4,7 @@ This document sketches how adapters could be registered and resolved using ALS-p
 
 ## Adapters
 
-Adapters should connect the framework to infrastructure concerns (databases, messaging, observability). For v0 we should use **explicit registration** instead of auto-registration to keep behavior transparent and debuggable. Abstract classes should act as ports (and DI tokens), while concrete classes implement the adapters.
+Adapters should connect the framework to infrastructure concerns (databases, messaging, observability, etc.). For v0 we should use **explicit registration** instead of auto-registration to keep behavior transparent and debuggable. Abstract classes should act as ports (and DI tokens), while concrete classes implement the adapters.
 
 - Provide a DI-like experience without hard dependencies on a DI framework.
 - Keep domain code functional while allowing adapters to be class-based.
@@ -56,7 +56,7 @@ const framework = createFramework({ adapters: registry })
 
 Context should be request-scoped and resolved via ALS. Hook-style helpers hide the context plumbing but remain explicit about dependencies. The ALS context can power their implementations, but the API should stay small.
 
-Utilities should include:
+Utilities could include:
 
 - `raise`
 - `withAuth` or `requireUser`
@@ -76,6 +76,8 @@ Example shorthand:
 ```ts
 raise(CardIssued, payload)
 ```
+
+### Provider Overrides
 
 Request-scoped provider overrides can be defined at the application-service boundary without pushing wiring into handlers:
 
@@ -108,7 +110,7 @@ The list below is not exhaustive, but it captures the key integration points and
 - `EventSubscriber`: consumes inbound events and invokes event handlers.
 - `LoggerAdapter`: structured logging with correlation context.
 - `MetricsAdapter`: counters, gauges, histograms, and summaries.
-- `TracingAdapter`: spans, context propagation, and OTEL export.
+- `TracingAdapter`: spans, context propagation, and OTEL export. (See [`docs/pdd/007-observability.md`](007-observability.md).)
 - `EntityRepository`: persistence port for loading/saving entity state.
 
 #### Repository Adapters
@@ -191,113 +193,7 @@ export class LocalEventSubscriber extends EventSubscriber {
 
 #### Observability Adapters
 
-Observability covers logging, metrics, and tracing. The framework should own correlation, default spans, and metric boundaries so application code stays focused on domain logic. Adapters translate these signals into concrete exports (OTEL, JSON logs, vendor SDKs).
-
-##### Logging
-
-Logging adapters should emit structured logs with request-scoped context (trace ID, boundary, command/event name). They should support configurable levels and pluggable formatters (JSON, logfmt).
-
-```ts
-export abstract class LoggerAdapter {
-	abstract info(message: string, fields?: Record<string, unknown>): void
-	abstract warn(message: string, fields?: Record<string, unknown>): void
-	abstract error(message: string, fields?: Record<string, unknown>): void
-}
-
-export class PinoLoggerAdapter extends LoggerAdapter {
-	constructor(private logger: Logger) {
-		super()
-	}
-
-	info(message: string, fields?: Record<string, unknown>) {
-		this.logger.info(fields, message)
-	}
-
-	warn(message: string, fields?: Record<string, unknown>) {
-		this.logger.warn(fields, message)
-	}
-
-	error(message: string, fields?: Record<string, unknown>) {
-		this.logger.error(fields, message)
-	}
-}
-```
-
-##### Metrics
-
-Metrics adapters should support counters, gauges, and histograms with tagging. The framework can record handler durations, error counts, and queue lag automatically while still allowing custom metrics.
-
-```ts
-export abstract class MetricsAdapter {
-	abstract counter(name: string, value: number, tags?: Record<string, string>): void
-	abstract gauge(name: string, value: number, tags?: Record<string, string>): void
-	abstract histogram(name: string, value: number, tags?: Record<string, string>): void
-}
-
-export class OtelMetricsAdapter extends MetricsAdapter {
-	constructor(private meter: Meter) {
-		super()
-	}
-
-	counter(name: string, value: number, tags?: Record<string, string>) {
-		this.meter.createCounter(name).add(value, tags)
-	}
-
-	gauge(name: string, value: number, tags?: Record<string, string>) {
-		this.meter.createObservableGauge(name).observe(value, tags)
-	}
-
-	histogram(name: string, value: number, tags?: Record<string, string>) {
-		this.meter.createHistogram(name).record(value, tags)
-	}
-}
-```
-
-##### Tracing
-
-Tracing adapters should centralize span creation and context propagation. The framework can auto-wrap application services, handlers, and query paths while still allowing custom spans.
-
-```ts
-export abstract class TracingAdapter {
-	abstract withSpan<T>(name: string, fn: () => Promise<T>): Promise<T>
-}
-
-export class OpenTelemetryAdapter extends TracingAdapter {
-	constructor(private tracer: Tracer) {
-		super()
-	}
-
-	async withSpan<T>(name: string, fn: () => Promise<T>) {
-		return this.tracer.startActiveSpan(name, async (span) => {
-			try {
-				return await fn()
-			} finally {
-				span.end()
-			}
-		})
-	}
-}
-```
-
-Datadog can be wired by swapping the exporter while keeping the same adapter surface. For example, configure the OpenTelemetry SDK with a Datadog trace exporter during boot:
-
-```ts
-import { trace } from '@opentelemetry/api'
-import { NodeSDK } from '@opentelemetry/sdk-node'
-import { DatadogTraceExporter } from '@datadog/otel-trace-exporter'
-
-const sdk = new NodeSDK({
-	instrumentations: [new FrameworkInstrumentation()],
-	traceExporter: new DatadogTraceExporter({ service: 'gift-card' })
-})
-
-sdk.start()
-
-const tracer = trace.getTracer('domain-framework')
-
-const framework = createFramework()
-	.provide(TracingAdapter, new OpenTelemetryAdapter(tracer))
-```
+Observability adapter details live in [`docs/pdd/007-observability.md`](007-observability.md). Infrastructure still registers the adapters through `createFramework().provide(...)` so logging, metrics, and tracing stay consistent across transports.
 
 ### Secondary Adapters
 
@@ -329,133 +225,6 @@ export class Argon2PasswordHasher extends PasswordHasher {
 
 const framework = createFramework()
 	.provide(PasswordHasher, new Argon2PasswordHasher())
-```
-
-## Future Considerations
-
-This section outlines potential future enhancements and considerations for the framework that are not planned for v0.
-
-### Configuration
-
-We may introduce a typed configuration layer for infrastructure concerns (database URLs, API keys, observability exporters). In v0 we can keep configuration at the bootstrapping boundary and pass adapters explicit dependencies, but a configuration module could centralize defaults, validation, and environment profiles later.
-
-### Inversion of Control
-
-IoC auto-registration would provide a Next.js-like experience with minimal boot code, but it introduces more framework magic, bundler requirements, and a heavier debugging surface. This should be deferred until the adapter surface is stable. To do it well, we would need:
-
-- a reliable manifest generator (or bundler plugin)
-- stable naming conventions for modules and tokens
-- clear override hooks for adapters and environments
-- strong diagnostics for missing/duplicate registrations
-- a command-line tool
-
-For v0, we should keep explicit registration so behavior stays transparent and debuggable. IoC can follow once the core concepts are more mature.
-
-Potential future direction: config-first auto-registration with bundler support, avoiding explicit `createFramework()` calls.
-
-#### 1) Project Config
-
-```ts
-// domain.config.ts
-export default defineDomainConfig({
-	root: './src',
-	mode: 'auto',
-	adapters: {
-		commandPublisher: 'local',
-		observability: 'otel'
-	}
-})
-```
-
-#### 2) CLI Boot
-
-```bash
-domain dev --config domain.config.ts
-domain build --config domain.config.ts
-domain start --config domain.config.ts
-```
-
-#### 3) Folder Conventions
-
-```
-src/
-  domain/
-    commands/
-    events/
-    entities/
-    handlers/
-  adapters/
-    repositories/
-    publishers/
-    observability/
-```
-
-#### 4) Adapter Auto-Registration
-
-```ts
-// adapters/repositories/gift-card.repository.ts
-export class GiftCardRepository extends EntityRepository<GiftCardState> {
-	async load(id: string) {
-		/* ... */
-		return null
-	}
-
-	async save(state: GiftCardState) {
-		/* ... */
-	}
-}
-```
-
-#### 5) Handler Auto-Registration
-
-```ts
-// domain/handlers/issue-card.handler.ts
-export const issueCardHandler = defineCommandHandler()
-  .entity(GiftCard)
-  .command(IssueCard)
-  .creation('always')
-  .handle((command, state) => {
-    const repo = useRepository(GiftCardRepository)
-    state.id = command.cardId
-    state.remainingValue = command.amount
-    repo.save(state)
-  })
-```
-
-#### 6) Overrides
-
-```ts
-export default defineDomainConfig({
-	root: './src',
-	mode: 'auto',
-	overrides: function (registry) {
-		registry.register(CommandPublisher, new NatsCommandPublisher(nats))
-	}
-})
-```
-
-#### 7) Environment Profiles
-
-```ts
-export default defineDomainConfig({
-	root: './src',
-	mode: 'auto',
-	profile: process.env.APP_PROFILE ?? 'local',
-	profiles: {
-		local: { commandPublisher: 'local' },
-		prod: { commandPublisher: 'nats' }
-	}
-})
-```
-
-#### 8) Generated Registry (Conceptual)
-
-```ts
-export const registry = {
-	handlers: [issueCardHandler, redeemCardHandler],
-	repositories: [GiftCardRepository],
-	commandPublishers: [LocalCommandPublisher]
-}
 ```
 
 ## Notes
