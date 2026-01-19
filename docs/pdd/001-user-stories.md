@@ -426,7 +426,6 @@ export const recordRedemptionHandler = defineCommandHandler()
   .command(RecordRedemption)
   .creation('always')
   .handle((command, state) => {
-    state.id = command.ledgerId
     state.entries.push({
       entryId: command.transactionId,
       cardId: command.cardId,

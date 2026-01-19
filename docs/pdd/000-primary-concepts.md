@@ -72,7 +72,7 @@ The framework owns trace propagation and span creation across the execution pipe
 * **Edge adapters** extract and inject W3C trace context for HTTP, queues, and event handlers.
 * **Execution pipeline** wraps application services, command execution, event handling, and query handling with spans.
 * **Message correlation** attaches trace identifiers to commands/events/queries to preserve causality across boundaries.
-* **Export layer** forwards traces to OTLP/OpenTelemetry destinations via a pluggable exporter.
+* **Export layer** forwards traces/metrics/logs to OTLP/OpenTelemetry destinations via pluggable exporters.
 
 ### Standards
 
@@ -86,7 +86,7 @@ The framework will:
 
 * extract and propagate W3C trace context across HTTP and message transports
 * create spans for key lifecycle phases (application services, command execution, event handling)
-* export telemetry via OTLP (configurable)
+* export observability signals via OTLP (configurable)
 
 Application code should not manually construct tracing metadata.
 

@@ -4,7 +4,7 @@ This document sketches how adapters could be registered and resolved using ALS-p
 
 ## Adapters
 
-Adapters should connect the framework to infrastructure concerns (databases, messaging, telemetry). For v0 we should use **explicit registration** instead of auto-registration to keep behavior transparent and debuggable. Abstract classes should act as ports (and DI tokens), while concrete classes implement the adapters.
+Adapters should connect the framework to infrastructure concerns (databases, messaging, observability). For v0 we should use **explicit registration** instead of auto-registration to keep behavior transparent and debuggable. Abstract classes should act as ports (and DI tokens), while concrete classes implement the adapters.
 
 - Provide a DI-like experience without hard dependencies on a DI framework.
 - Keep domain code functional while allowing adapters to be class-based.
@@ -12,14 +12,16 @@ Adapters should connect the framework to infrastructure concerns (databases, mes
 
 ### Dependency Injection
 
-Use abstract classes as DI tokens. Implementations should be registered with the framework and resolved via core APIs such as `useRepository` or `useTelemetry`, or `useAdapter` for custom adapters.
+Use abstract classes as DI tokens. Implementations should be registered with the framework and resolved via core APIs such as `useRepository`, `useLogger`, `useMetrics`, `useTracer`, or `useAdapter` for custom adapters.
 
 Register implementations at the framework boundary:
 
 ```ts
 const framework = createFramework()
 	.provide(GiftCardRepository, new PostgresGiftCardRepository(pg))
-	.provide(TelemetryAdapter, new OpenTelemetryAdapter(otel))
+	.provide(LoggerAdapter, new PinoLoggerAdapter())
+	.provide(MetricsAdapter, new OtelMetricsAdapter(otel))
+	.provide(TracingAdapter, new OpenTelemetryAdapter(otel))
 	.provide(CommandPublisher, new LocalCommandPublisher())
 ```
 
@@ -29,7 +31,9 @@ Resolve inside handlers and services:
 
 ```ts
 const giftCardRepository = useRepository(GiftCardRepository)
-const telemetry = useTelemetry()
+const logger = useLogger()
+const metrics = useMetrics()
+const tracer = useTracer()
 ```
 
 This keeps domain code clean while relying on explicit adapter wiring at boot.
@@ -40,7 +44,9 @@ Alternate possible explicit registration API (if the builder pattern is not avai
 const registry = createAdapterRegistry()
 
 registry.registerRepository(GiftCardRepository, new PostgresGiftCardRepository(pg))
-registry.registerTelemetry(new OpenTelemetryAdapter(otel))
+registry.registerLogger(new PinoLoggerAdapter())
+registry.registerMetrics(new OtelMetricsAdapter(otel))
+registry.registerTracing(new OpenTelemetryAdapter(otel))
 registry.registerCommandPublisher(new LocalCommandPublisher())
 
 const framework = createFramework({ adapters: registry })
@@ -55,12 +61,14 @@ Utilities should include:
 - `raise`
 - `withAuth` or `requireUser`
 
-Hooks should make the dependency lookup explicit while signaling ALS-backed resolution. The `use` prefix mirrors common hook conventions to keep the implicit context obvious without pushing `ctx` through every call; alternatives like `resolveRepository` or `getTelemetry` could work, but `use*` reads clearly as a request-scoped lookup.
+Hooks should make the dependency lookup explicit while signaling ALS-backed resolution. The `use` prefix mirrors common hook conventions to keep the implicit context obvious without pushing `ctx` through every call; alternatives like `resolveRepository` or `getLogger` could work, but `use*` reads clearly as a request-scoped lookup.
 
 Hooks should include:
 
 - `useRepository`
-- `useTelemetry`
+- `useLogger`
+- `useMetrics`
+- `useTracer`
 - `useAdapter`
 
 Example shorthand:
@@ -90,7 +98,7 @@ export const issueCardService = defineApplicationService()
 
 ### Core Framework Adapters
 
-Core adapters should be few and explicit. They adapt the framework’s internal abstractions (commands, events, persistence, telemetry) to the infrastructure where those concerns actually live. In other words, adapters translate domain-friendly concepts into concrete transports, protocols, and data stores so the runtime can remain portable across environments.
+Core adapters should be few and explicit. They adapt the framework’s internal abstractions (commands, events, persistence, observability) to the infrastructure where those concerns actually live. In other words, adapters translate domain-friendly concepts into concrete transports, protocols, and data stores so the runtime can remain portable across environments.
 
 The list below is not exhaustive, but it captures the key integration points and naming. The examples below illustrate the general DI pattern.
 
@@ -98,7 +106,9 @@ The list below is not exhaustive, but it captures the key integration points and
 - `CommandSubscriber`: subscribes to command transports and hands envelopes to execution.
 - `EventPublisher`: forwards raised domain events to the outbound transport.
 - `EventSubscriber`: consumes inbound events and invokes event handlers.
-- `TelemetryAdapter`: wraps tracing/metrics so handlers stay infrastructure-agnostic.
+- `LoggerAdapter`: structured logging with correlation context.
+- `MetricsAdapter`: counters, gauges, histograms, and summaries.
+- `TracingAdapter`: spans, context propagation, and OTEL export.
 - `EntityRepository`: persistence port for loading/saving entity state.
 
 #### Repository Adapters
@@ -130,24 +140,129 @@ export class PostgresGiftCardRepository extends PostgresRepository<GiftCardState
 }
 ```
 
-#### Telemetry Adapters
+#### Transport Adapters
 
-Telemetry adapters should centralize tracing and metrics without polluting domain code. The adapter shape should stay minimal so it can wrap OpenTelemetry or any other tracing backend. The framework would own span creation around application services, command handlers, event handlers, and query handlers; adapters would translate those spans into a concrete exporter.
+Transport adapters bridge the framework’s command/event pipeline with infrastructure. Outbound adapters publish command/event envelopes, while inbound adapters receive envelopes and invoke the appropriate handler. This keeps the handler API stable while allowing different transports (in-process, queues, streams, serverless triggers) to be configured at boot.
 
-OpenTelemetry usage would look like:
+- Outbound: `CommandPublisher`, `EventPublisher`
+- Inbound: `CommandSubscriber`, `EventSubscriber`
 
-- Use the OpenTelemetry API to create spans (`startActiveSpan`) at key lifecycle points.
-- Attach shared attributes (boundary name, command/event/query name, correlation IDs).
-- Configure exporters at boot, not inside domain code.
-
-A minimal OpenTelemetry adapter could look like:
+Example (in-process transport):
 
 ```ts
-export abstract class TelemetryAdapter {
+import { EventEmitter } from 'node:events'
+
+export class LocalCommandPublisher extends CommandPublisher {
+	private emitter = new EventEmitter()
+
+	async publish(envelope: CommandEnvelope) {
+		this.emitter.emit('command', envelope)
+	}
+}
+
+export class LocalCommandSubscriber extends CommandSubscriber {
+	constructor(private emitter: EventEmitter) {
+		super()
+	}
+
+	bind() {
+		this.emitter.on('command', (envelope) => commandHandler.execute(envelope))
+	}
+}
+
+export class LocalEventPublisher extends EventPublisher {
+	private emitter = new EventEmitter()
+
+	async publish(envelope: EventEnvelope) {
+		this.emitter.emit('event', envelope)
+	}
+}
+
+export class LocalEventSubscriber extends EventSubscriber {
+	constructor(private emitter: EventEmitter) {
+		super()
+	}
+
+	bind() {
+		this.emitter.on('event', (envelope) => eventHandler.handle(envelope))
+	}
+}
+```
+
+#### Observability Adapters
+
+Observability covers logging, metrics, and tracing. The framework should own correlation, default spans, and metric boundaries so application code stays focused on domain logic. Adapters translate these signals into concrete exports (OTEL, JSON logs, vendor SDKs).
+
+##### Logging
+
+Logging adapters should emit structured logs with request-scoped context (trace ID, boundary, command/event name). They should support configurable levels and pluggable formatters (JSON, logfmt).
+
+```ts
+export abstract class LoggerAdapter {
+	abstract info(message: string, fields?: Record<string, unknown>): void
+	abstract warn(message: string, fields?: Record<string, unknown>): void
+	abstract error(message: string, fields?: Record<string, unknown>): void
+}
+
+export class PinoLoggerAdapter extends LoggerAdapter {
+	constructor(private logger: Logger) {
+		super()
+	}
+
+	info(message: string, fields?: Record<string, unknown>) {
+		this.logger.info(fields, message)
+	}
+
+	warn(message: string, fields?: Record<string, unknown>) {
+		this.logger.warn(fields, message)
+	}
+
+	error(message: string, fields?: Record<string, unknown>) {
+		this.logger.error(fields, message)
+	}
+}
+```
+
+##### Metrics
+
+Metrics adapters should support counters, gauges, and histograms with tagging. The framework can record handler durations, error counts, and queue lag automatically while still allowing custom metrics.
+
+```ts
+export abstract class MetricsAdapter {
+	abstract counter(name: string, value: number, tags?: Record<string, string>): void
+	abstract gauge(name: string, value: number, tags?: Record<string, string>): void
+	abstract histogram(name: string, value: number, tags?: Record<string, string>): void
+}
+
+export class OtelMetricsAdapter extends MetricsAdapter {
+	constructor(private meter: Meter) {
+		super()
+	}
+
+	counter(name: string, value: number, tags?: Record<string, string>) {
+		this.meter.createCounter(name).add(value, tags)
+	}
+
+	gauge(name: string, value: number, tags?: Record<string, string>) {
+		this.meter.createObservableGauge(name).observe(value, tags)
+	}
+
+	histogram(name: string, value: number, tags?: Record<string, string>) {
+		this.meter.createHistogram(name).record(value, tags)
+	}
+}
+```
+
+##### Tracing
+
+Tracing adapters should centralize span creation and context propagation. The framework can auto-wrap application services, handlers, and query paths while still allowing custom spans.
+
+```ts
+export abstract class TracingAdapter {
 	abstract withSpan<T>(name: string, fn: () => Promise<T>): Promise<T>
 }
 
-export class OpenTelemetryAdapter extends TelemetryAdapter {
+export class OpenTelemetryAdapter extends TracingAdapter {
 	constructor(private tracer: Tracer) {
 		super()
 	}
@@ -180,7 +295,7 @@ sdk.start()
 const tracer = trace.getTracer('domain-framework')
 
 const framework = createFramework()
-	.provide(TelemetryAdapter, new OpenTelemetryAdapter(tracer))
+	.provide(TracingAdapter, new OpenTelemetryAdapter(tracer))
 ```
 
 ### Secondary Adapters
@@ -221,7 +336,7 @@ This section outlines potential future enhancements and considerations for the f
 
 ### Configuration
 
-We may introduce a typed configuration layer for infrastructure concerns (database URLs, API keys, telemetry exporters). In v0 we can keep configuration at the bootstrapping boundary and pass adapters explicit dependencies, but a configuration module could centralize defaults, validation, and environment profiles later.
+We may introduce a typed configuration layer for infrastructure concerns (database URLs, API keys, observability exporters). In v0 we can keep configuration at the bootstrapping boundary and pass adapters explicit dependencies, but a configuration module could centralize defaults, validation, and environment profiles later.
 
 ### Inversion of Control
 
@@ -246,7 +361,7 @@ export default defineDomainConfig({
 	mode: 'auto',
 	adapters: {
 		commandPublisher: 'local',
-		telemetry: 'otel'
+		observability: 'otel'
 	}
 })
 ```
@@ -271,7 +386,7 @@ src/
   adapters/
     repositories/
     publishers/
-    telemetry/
+    observability/
 ```
 
 #### 4) Adapter Auto-Registration
