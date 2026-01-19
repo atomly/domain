@@ -57,8 +57,6 @@ Creation policies include `always`, `never`, and `if_missing`. They are defined 
 
 A command handler is bound to a single entity instance. Cross-entity workflows are expressed through events, event handlers, and additional commands over time.
 
-Any future allowance for multi-entity writes would require a deliberate ADR.
-
 ## Outbox Pattern
 
 Outbox support could provide a reliable way to persist events alongside state changes and publish them asynchronously, ensuring delivery even if the process crashes after a commit.
@@ -82,5 +80,3 @@ export const fraudPolicy = defineStrategyPolicy()
 ## Auth Helpers
 
 Authentication wrappers (for example, `withAuth` or `requireUser`) could be offered as opinionated utilities, but they are not required by the core framework.
-
-

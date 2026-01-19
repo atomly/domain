@@ -1,6 +1,6 @@
 # Open Questions
 
-These items should feed ADRs for decisions that are still unsettled.
+These items should feed discussions for decisions that are still unsettled.
 
 ## Core Concepts
 

@@ -15,7 +15,7 @@ The framework concept set is organized around explicit definition APIs that pres
 * `defineQueryHandler`: read model access
 * `defineDomainService`: multi-read domain logic with constraints
 
-Schemas will be co-located with the concept definition. These APIs are illustrative and may change as ADRs refine naming, validation, and handler structure.
+Schemas will be co-located with the concept definition. These APIs are illustrative and may change as we refine naming, validation, and handler structure.
 
 These decisions should stay aligned with DDD principles and the vision’s focus on explicit language, boundaries, and invariant preservation.
 
@@ -223,4 +223,4 @@ We may introduce a distinction between:
 * **Domain events**: internal facts in a boundary’s ubiquitous language
 * **Integration events**: stable, cross-boundary contracts with explicit versioning/compatibility expectations
 
-If adopted, cross-boundary communication would prefer integration events, while domain events remain internal. This decision is intentionally deferred to ADRs.
+If adopted, cross-boundary communication would prefer integration events, while domain events remain internal. This decision is intentionally deferred for the time being.
