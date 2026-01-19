@@ -21,3 +21,5 @@ The document takes the vision’s principles as guardrails:
 - [`docs/pdd/001-user-stories.md`](001-user-stories.md)
 - [`docs/pdd/002-secondary-concepts.md`](002-secondary-concepts.md)
 - [`docs/pdd/003-infrastructure.md`](003-infrastructure.md)
+- [`docs/pdd/004-ai-integrations.md`](004-ai-integrations.md)
+- [`docs/pdd/005-controllers.md`](005-controllers.md)

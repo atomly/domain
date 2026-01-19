@@ -287,6 +287,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node'
 import { DatadogTraceExporter } from '@datadog/otel-trace-exporter'
 
 const sdk = new NodeSDK({
+	instrumentations: [new FrameworkInstrumentation()],
 	traceExporter: new DatadogTraceExporter({ service: 'gift-card' })
 })
 

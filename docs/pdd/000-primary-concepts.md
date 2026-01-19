@@ -61,11 +61,9 @@ A command handler is bound to a single entity instance. Cross-entity workflows a
 
 Any future allowance for multi-entity writes would require a deliberate ADR.
 
-## Traceability and Observability (Exploratory)
+## Observability
 
-Traceability is shown here as a framework-owned default and may be scoped differently in ADRs. Application code should not manage tracing; the framework will handle propagation, spans, and export end to end.
-
-### Tracing Architecture
+Observability is shown here as a framework-owned default and may be scoped differently in ADRs. Application code should not manage observability; the framework will handle most (if not all) end to end.
 
 The framework owns trace propagation and span creation across the execution pipeline:
 
@@ -79,6 +77,8 @@ The framework owns trace propagation and span creation across the execution pipe
 * **W3C Trace Context** for propagation (`traceparent`, `tracestate`)
 * **OpenTelemetry** for instrumentation APIs and semantic conventions
 * **OTLP** as the primary export protocol for traces/metrics/logs
+
+More information can be found in [`docs/003-infrastructure`](003-infrastructure#Adapters).
 
 ### Framework Responsibilities
 
@@ -96,7 +96,7 @@ Application code should not manually construct tracing metadata.
 * Boundaries communicate via commands/events, not direct calls into another boundary’s domain.
 * Event handlers live in the receiving boundary and translate inbound facts into local actions.
 
-### Note: Domain Events vs Integration Events (Future Consideration)
+### Domain Events vs Integration Events
 
 We may introduce a distinction between:
 
@@ -104,6 +104,89 @@ We may introduce a distinction between:
 * **Integration events**: stable, cross-boundary contracts with explicit versioning/compatibility expectations
 
 If adopted, cross-boundary communication would prefer integration events, while domain events remain internal. This decision is intentionally deferred to ADRs.
+
+## Application Service Patterns
+
+Applications may prefer single-use-case services or group multiple use cases together for a more controller-friendly DX. All options below preserve domain-first command/event boundaries.
+
+### Option A: Router-style Service (tRPC-like)
+
+```ts
+export const userService = defineApplicationService().router({
+  create: defineApplicationService()
+    .input(CreateUserInput)
+    .handle(async (input) => {
+      await createUserHandler.execute(input)
+      return { ok: true }
+    }),
+  deactivate: defineApplicationService()
+    .input(DeactivateUserInput)
+    .handle(async (input) => {
+      await deactivateUserHandler.execute(input)
+      return { ok: true }
+    })
+})
+```
+
+### Option B: Use-case Namespace
+
+```ts
+export const userService = defineApplicationService().useCases({
+  create: defineApplicationService()
+    .input(CreateUserInput)
+    .handle(async (input) => {
+      await createUserHandler.execute(input)
+      return { ok: true }
+    }),
+  deactivate: defineApplicationService()
+    .input(DeactivateUserInput)
+    .handle(async (input) => {
+      await deactivateUserHandler.execute(input)
+      return { ok: true }
+    })
+})
+```
+
+### Option C: Single-use-case Services + Router Composition
+
+```ts
+export const createUserService = defineApplicationService()
+  .input(CreateUserInput)
+  .handle(async (input) => {
+    await createUserHandler.execute(input)
+    return { ok: true }
+  })
+
+export const deactivateUserService = defineApplicationService()
+  .input(DeactivateUserInput)
+  .handle(async (input) => {
+    await deactivateUserHandler.execute(input)
+    return { ok: true }
+  })
+
+export const userRouter = defineServiceRouter({
+  create: createUserService,
+  deactivate: deactivateUserService
+})
+```
+
+### Option D: Controller-first Mapping
+
+```ts
+export const userController = defineApplicationController()
+  .route('POST /users', createUserService)
+  .route('POST /users/:id/deactivate', deactivateUserService)
+```
+
+### Option E: Application Module
+
+```ts
+export const userModule = defineApplicationModule()
+  .services({
+    create: createUserService,
+    deactivate: deactivateUserService
+  })
+```
 
 ## Future Considerations
 
