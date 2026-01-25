@@ -81,7 +81,7 @@ export class PostgresGiftCardRepository extends PostgresRepository<GiftCardState
 
 ## Read Models
 
-Read models power queries without touching write-side invariants. The read model could also be a model separate from tne Entity itself, but that will be out of scope for this PDD, and likely v0 of the framework.
+Read models power queries without touching write-side invariants. The read model could also be a model separate from the Entity itself, but that will be out of scope for this PDD, and likely v0 of the framework.
 
 ```ts
 export const getGiftCardBalance = defineQueryHandler()

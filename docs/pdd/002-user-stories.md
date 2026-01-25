@@ -325,7 +325,7 @@ export const GetGiftCardBalance = defineQuery()
   )
 ```
 
-### Query Handler (Application Layer)
+### Query Handler (Domain Layer)
 
 The handler reads from the read model and returns a domain-shaped response without mutating state.
 

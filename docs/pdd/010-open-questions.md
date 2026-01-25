@@ -10,6 +10,7 @@ These items should feed discussions for decisions that are still unsettled.
 - Integration events vs domain events for cross-context boundaries.
 - Traceability defaults and which spans are mandatory vs configurable.
 - Command `target` without `.entity(...)`: allow as stateless routing or treat as config error.
+- Application service auto-load: allow `.loadEntity(...)` helper or keep manual repository access.
 
 ## AI Integrations
 

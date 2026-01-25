@@ -89,7 +89,7 @@ The framework will be valuable for small projects and scale upward. Teams won’
 
 The framework will be designed with a domain-first approach, focusing on making domain logic intuitive and clear. At its core, it will emphasize the use of **commands** to express intended actions, **events** to capture what has occurred, and **queries** to request information. The framework’s primary job will be to make these concepts feel natural in application code and aligned with business language.
 
-We will also not re-implement HTTP frameworks or compete with Express/Fastify/Hono/etc. Applications will run inside the server framework of their choice, while this framework focuses on the application layer and domain modeling. Where needed, it will integrate cleanly with existing servers and the networking realities of event-driven systems.
+We will also not re-implement HTTP frameworks or compete with Express/Fastify/Hono/etc. Applications will run inside the server framework of their choice, while this framework focuses on application services and domain modeling. Where needed, it will integrate cleanly with existing servers and the networking realities of event-driven systems.
 
 ### Messages
 
@@ -99,12 +99,12 @@ We will also not re-implement HTTP frameworks or compete with Express/Fastify/Ho
 
 These message types will serve as the primary mechanism for encoding domain workflows and preserving intent in the codebase.
 
-### Application Layer
+### Application Services
 
-The framework will include a clear application layer that coordinates domain behavior while keeping business rules explicit.
+The framework will include a clear application services layer that coordinates domain behavior while keeping business rules explicit.
 
-* **Application Services** will orchestrate use cases.
-* **Command Handlers** will represent the same kind of orchestration, but will be **temporally decoupled**: they will operate in an asynchronous timeline rather than immediately in the caller’s timeline.
+* **Application Services** orchestrate use cases.
+* **Command Handlers** represent the same kind of orchestration, but are **temporally decoupled**: they operate in an asynchronous timeline rather than immediately in the caller’s timeline.
 
 The distinction will not be responsibility—it will be **time**.
 

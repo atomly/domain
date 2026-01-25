@@ -25,7 +25,7 @@ If a command defines a `target` but the handler omits `.entity(...)`, there are 
 
 Async context will make request-scoped tracing and transactions available without threading `ctx` everywhere. The framework will own the begin/commit/rollback lifecycle so application code only expresses intent. Application services should establish the ALS boundary when executing a use case, and handlers retrieve context with `useContext()` instead of receiving it as a parameter.
 
-Application services should accept an optional `context` seed (trace IDs, auth, request metadata) so controllers can pass request-level data without creating ALS directly.
+Application services should accept an optional `context` seed (trace IDs, auth, request metadata) so adapters can pass request-level data without creating ALS directly.
 
 Typical request-scoped capabilities exposed by `useContext()` should include auth/identity, logging/metrics, feature flags/config, repositories/adapters, command/event IO, etc.
 
